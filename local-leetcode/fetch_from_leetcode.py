@@ -4,12 +4,13 @@ import re
 import subprocess
 from typing import Any, TypedDict
 
+import bs4
+import requests
+
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-import bs4
-import requests
 
 MAX_LINE_LENGTH = 80
 
