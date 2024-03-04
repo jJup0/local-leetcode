@@ -1,1 +1,4 @@
 .vscode
+local_leetcode.egg-info/
+dist/
+venv/
