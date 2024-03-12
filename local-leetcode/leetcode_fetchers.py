@@ -19,6 +19,17 @@ class LeetCodeFetcher(abc.ABC):
     def post_leetcode_graph_ql(
         self, query: str, variables: dict[str, Any] | None = None
     ) -> dict[str, Any]:
+        """Sends a post request to the LeetCode GraphQL API and returns the result.
+
+        Args:
+            query (str): GraphQL query to send.
+            variables (dict[str, Any] | None, optional):
+              Variables with which to fill the GraphQL query, set to None if no variables.
+              Defaults to None.
+
+        Returns:
+            dict[str, Any]: JSON response from the LeetCode GraphQL API.
+        """
         raise NotImplementedError()
 
     def fetch_fail(self, response: requests.Response) -> NoReturn:
