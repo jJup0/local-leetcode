@@ -24,21 +24,13 @@ def replace_multiple_whitespace_single_space(string: str):
     return re.sub(r"\s+", " ", string)
 
 
-def replace_multiple_whitespace_single_space_except_newline(string: str):
-    return re.sub(r"\s+", " ", string)
-
-
-def replace_multiple_whitespace_single_space_strip(string: str):
-    return replace_multiple_whitespace_single_space(string).strip()
-
-
 def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -> str:
     res_str_list: list[str] = []
     for child in tag.contents:
         if isinstance(child, bs4.NavigableString):
             if child.text.strip():
                 res_str_list.append(
-                    replace_multiple_whitespace_single_space_except_newline(child.text)
+                    replace_multiple_whitespace_single_space(child.text)
                 )
         elif isinstance(child, bs4.Tag):
             child_type_str = child.name
