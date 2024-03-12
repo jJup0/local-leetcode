@@ -5,7 +5,7 @@ import subprocess
 from typing import Any, TypedDict
 
 import bs4
-import requests
+from leetcode_fetchers import LeetCodeFetcher, SeleniumRequestsFetcher
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -43,36 +43,10 @@ def replace_multiple_whitespace_single_space_replace_special_newling(string: str
     )
 
 
-def leetcode_graphql_request(
-    query: str, variables: dict[str, Any] | None = None
-) -> dict[str, Any]:
-    # LeetCode GraphQL API endpoint
-    api_url = "https://leetcode.com/graphql"
-
-    # Define the headers with required information
-    headers = {
-        "Content-Type": "application/json",
-        "Referer": "https://leetcode.com/",
-    }
-
-    # Define the GraphQL query as a dictionary
-    graphql_query: dict[str, Any] = {"query": query}
-    if variables:
-        graphql_query["variables"] = variables
-
-    # Make the GraphQL request
-    response = requests.post(api_url, headers=headers, json=graphql_query)
-
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        return response.json()
-
-    raise Exception(
-        f"Error: Failed to make GraphQL request. Status Code: {response.status_code}. Response: {response.json()}"
-    )
+full_cookie = """__stripe_mid=d81c75fa-5168-4587-8dc4-b75ad4bc2679eb80ff; cf_clearance=jqwjDhjDaTvbQP5VTJvArFW7IvRm.qIZ4Y9CJ77o4_8-1709743798-1.0.1.1-5mBJOja0.F1bZcW3btW4bIgk7r9lRBqetjecTGykR.R_lGAyGgqFvVZJEl8aaqOw7ZwclVT0QNchNCaYOhNb4w; csrftoken=yVFtTORNlCvpgqr1oAHptaYszp963rF4jaMlObpvzeaVSe4ycfvqDIzfwht0ki12; LEETCODE_SESSION=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJfYXV0aF91c2VyX2lkIjoiMjYzOTk3OCIsIl9hdXRoX3VzZXJfYmFja2VuZCI6ImFsbGF1dGguYWNjb3VudC5hdXRoX2JhY2tlbmRzLkF1dGhlbnRpY2F0aW9uQmFja2VuZCIsIl9hdXRoX3VzZXJfaGFzaCI6IjlhMzBiNzNmNzJjYjI1MWNjMTk0YmVlNWFhMGYyYjk3YWJkYjk0MDhlYmEwYTkwZGMyNGI5NWRjM2Y3MjdmYzkiLCJpZCI6MjYzOTk3OCwiZW1haWwiOiJqYWtvYi5yb2l0aGluZ2VyQG1lLmNvbSIsInVzZXJuYW1lIjoiakp1cDAiLCJ1c2VyX3NsdWciOiJqSnVwMCIsImF2YXRhciI6Imh0dHBzOi8vYXNzZXRzLmxlZXRjb2RlLmNvbS91c2Vycy9kZWZhdWx0X2F2YXRhci5qcGciLCJyZWZyZXNoZWRfYXQiOjE3MDk3NDM4MDksImlwIjoiMmEwMjo4Mzg4OjZiYzA6NWM4MDo3MDBmOjNmMDpmNzY4OmRmZDIiLCJpZGVudGl0eSI6IjRmMDllMDFjODNkNjkxMDBjMzYzYzMzYWVjZmVmOWY4IiwiX3Nlc3Npb25fZXhwaXJ5IjoxMjA5NjAwLCJzZXNzaW9uX2lkIjo1NzA3NzM2OH0.53JJBiaGqC_HG_7a0NMvA3JWY5mxO1BT0bPe0JP-90Y; __cf_bm=3aP3MfTYS3o1ndpCjzmH2qPv8tKiBXdOajpwnwjeL9I-1709756167-1.0.1.1-CW9XX2KqEEjlbGtYYXH_FYGQVRgmwtLM4o64mKvLGttZbYuE2DdmvefZLv2AlmUsf0lcZlOzRXYM0jW4pxXAtw; INGRESSCOOKIE=1edca20352b277c7f2408f99cb66aa33|8e0876c7c1464cc0ac96bc2edceabd27; _dd_s=rum=0&expire=1709757073680"""
 
 
-def get_daily_question_slug():
+def get_daily_question_slug(fetcher: LeetCodeFetcher) -> str:
     daily_q_query = """
     {
         activeDailyCodingChallengeQuestion {
@@ -84,14 +58,16 @@ def get_daily_question_slug():
         }
     }
     """
-    result = leetcode_graphql_request(daily_q_query)
+    result = fetcher.post_leetcode_graph_ql(daily_q_query)
     daily_q_title_slug = result["data"]["activeDailyCodingChallengeQuestion"][
         "question"
     ]["titleSlug"]
     return daily_q_title_slug
 
 
-def get_daily_question_description_html(daily_q_title_slug: str):
+def get_daily_question_description_html(
+    fetcher: LeetCodeFetcher, daily_q_title_slug: str
+) -> str:
     question_query = """query questionContent($titleSlug: String!) {
         question(titleSlug: $titleSlug) {
             content
@@ -103,12 +79,12 @@ def get_daily_question_description_html(daily_q_title_slug: str):
     question_variables = {
         "titleSlug": daily_q_title_slug,
     }
-    result = leetcode_graphql_request(question_query, question_variables)
+    result = fetcher.post_leetcode_graph_ql(question_query, question_variables)
     problem_description_html = result["data"]["question"]["content"]
     return problem_description_html
 
 
-def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0):
+def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -> str:
     res_str_list: list[str] = []
     for child in tag.contents:
         if isinstance(child, bs4.NavigableString):
@@ -228,8 +204,8 @@ def parse_description_html(description_html: str) -> str:
     return "\n".join(line_limited_description_list)
 
 
-def get_daily_question_description(daily_q_title_slug: str):
-    description_html = get_daily_question_description_html(daily_q_title_slug)
+def get_daily_question_description(fetcher: LeetCodeFetcher, daily_q_title_slug: str):
+    description_html = get_daily_question_description_html(fetcher, daily_q_title_slug)
     description_str = parse_description_html(description_html)
     return description_str
 
@@ -242,7 +218,9 @@ class QuestionInfo(TypedDict):
     difficulty: str
 
 
-def get_question_info(daily_q_title_slug: str) -> QuestionInfo:
+def get_question_info(
+    fetcher: LeetCodeFetcher, daily_q_title_slug: str
+) -> QuestionInfo:
     question_query = """query questionTitle($titleSlug: String!) {
         question(titleSlug: $titleSlug) {
             questionId
@@ -256,11 +234,11 @@ def get_question_info(daily_q_title_slug: str) -> QuestionInfo:
     gql_variables = {
         "titleSlug": daily_q_title_slug,
     }
-    result = leetcode_graphql_request(question_query, gql_variables)
+    result = fetcher.post_leetcode_graph_ql(question_query, gql_variables)
     return QuestionInfo(result["data"]["question"])
 
 
-def get_default_code_unclean(title_slug: str):
+def get_default_code_unclean(fetcher: LeetCodeFetcher, title_slug: str):
     code_gql_query = """query questionEditorData($titleSlug: String!) {
         question(titleSlug: $titleSlug) {
             questionId
@@ -274,7 +252,7 @@ def get_default_code_unclean(title_slug: str):
     code_gql_variables = {
         "titleSlug": title_slug,
     }
-    result = leetcode_graphql_request(code_gql_query, code_gql_variables)
+    result = fetcher.post_leetcode_graph_ql(code_gql_query, code_gql_variables)
     all_code_snippets: list[Any] = result["data"]["question"]["codeSnippets"]
     for code_snippet in all_code_snippets:
         if code_snippet["langSlug"] == "python3":
@@ -283,14 +261,16 @@ def get_default_code_unclean(title_slug: str):
 
 
 def clean_code(unclean_code: str) -> str:
+    # todo only match full word for List, otherwise function names with List
+    # or ListNode definitions will get messed up
     replacements = (("List", "list"),)
     for str_to_replace, replacement in replacements:
         unclean_code = unclean_code.replace(str_to_replace, replacement)
     return unclean_code
 
 
-def get_default_code(title_slug: str) -> str:
-    unclean_code = get_default_code_unclean(title_slug)
+def get_default_code(fetcher: LeetCodeFetcher, title_slug: str) -> str:
+    unclean_code = get_default_code_unclean(fetcher, title_slug)
     return clean_code(unclean_code)
 
 
@@ -312,6 +292,11 @@ def create_question_file(
         logger.info("File already exists")
         return
 
+    if not os.path.isdir(os.path.dirname(file_path)):
+        raise NotADirectoryError(
+            f"Directory {os.path.dirname(file_path)} does not exist."
+        )
+
     with open(file_path, "w") as f:
         f.write('"""\n')
         f.write(q_description)
@@ -326,13 +311,14 @@ def open_question_file(question_info: QuestionInfo):
 
 
 def main():
-    daily_q_slug = get_daily_question_slug()
+    fetcher = SeleniumRequestsFetcher()
+    daily_q_slug = get_daily_question_slug(fetcher)
 
-    default_code = get_default_code(daily_q_slug)
+    default_code = get_default_code(fetcher, daily_q_slug)
 
-    q_description = get_daily_question_description(daily_q_slug)
+    q_description = get_daily_question_description(fetcher, daily_q_slug)
 
-    question_info = get_question_info(daily_q_slug)
+    question_info = get_question_info(fetcher, daily_q_slug)
 
     create_question_file(q_description, default_code, question_info)
 
