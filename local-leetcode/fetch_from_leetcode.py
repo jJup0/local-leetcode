@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 from typing import Any, TypedDict
 
@@ -8,7 +9,7 @@ from leetcode_fetchers import LeetCodeFetcher, SeleniumRequestsFetcher
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def get_daily_question_slug(fetcher: LeetCodeFetcher) -> str:
@@ -108,9 +109,9 @@ def get_default_code_unclean(fetcher: LeetCodeFetcher, title_slug: str):
 def clean_code(unclean_code: str) -> str:
     # todo only match full word for List, otherwise function names with List
     # or ListNode definitions will get messed up
-    replacements = (("List", "list"),)
-    for str_to_replace, replacement in replacements:
-        unclean_code = unclean_code.replace(str_to_replace, replacement)
+    replacements = (("\bList\b", "list"),)
+    for pattern_to_replace, replacement in replacements:
+        unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
     return unclean_code
 
 
@@ -132,15 +133,20 @@ def get_question_path(question_info: QuestionInfo) -> str:
 def create_question_file(
     q_description: str, default_code: str, question_info: QuestionInfo
 ):
+    temp_file_name = "temp.py"
+
     file_path = get_question_path(question_info)
     if os.path.isfile(file_path):
         logger.info("File already exists")
         return
 
     if not os.path.isdir(os.path.dirname(file_path)):
-        raise NotADirectoryError(
-            f"Directory {os.path.dirname(file_path)} does not exist."
+        logger.error(
+            "Directory %s does not exist. Writing to %s",
+            os.path.dirname(file_path),
+            temp_file_name,
         )
+        file_path = temp_file_name
 
     with open(file_path, "w") as f:
         f.write('"""\n')
@@ -156,6 +162,7 @@ def open_question_file(question_info: QuestionInfo):
 
 
 def main():
+    logger.info("Fetching daily from LeetCode")
     fetcher = SeleniumRequestsFetcher()
     daily_q_slug = get_daily_question_slug(fetcher)
 
