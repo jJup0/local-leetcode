@@ -1,11 +1,10 @@
 import logging
 import os
-import re
 import subprocess
 from typing import Any, TypedDict
 
-from html_parser import parse_description_html
-from leetcode_fetchers import LeetCodeFetcher, SeleniumRequestsFetcher
+from .html_parser import parse_description_html
+from .leetcode_fetchers import LeetCodeFetcher, SeleniumRequestsFetcher
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -109,9 +108,10 @@ def get_default_code_unclean(fetcher: LeetCodeFetcher, title_slug: str):
 def clean_code(unclean_code: str) -> str:
     # todo only match full word for List, otherwise function names with List
     # or ListNode definitions will get messed up
-    replacements = ((" List[", " list["),)
+    replacements = (("List[", "list["),)
     for pattern_to_replace, replacement in replacements:
-        unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
+        # unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
+        unclean_code = unclean_code.replace(pattern_to_replace, replacement)
     return unclean_code
 
 
