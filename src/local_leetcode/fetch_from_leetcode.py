@@ -4,7 +4,7 @@ import subprocess
 from typing import Any, TypedDict
 
 from .html_parser import parse_description_html
-from .leetcode_fetchers import LeetCodeFetcher, SeleniumRequestsFetcher
+from .leetcode_fetchers import ClassicRequestsFetcher, LeetCodeFetcher
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -163,7 +163,7 @@ def open_question_file(question_info: QuestionInfo):
 
 def main():
     logger.info("Fetching daily from LeetCode")
-    fetcher = SeleniumRequestsFetcher()
+    fetcher = ClassicRequestsFetcher()
     daily_q_slug = get_daily_question_slug(fetcher)
 
     default_code = get_default_code(fetcher, daily_q_slug)
