@@ -2,14 +2,14 @@ import re
 
 import bs4
 
-MAX_LINE_LENGTH = 80
+# maximum characters per line when generating docstring,
+# whitespace does not count towards this limit
+MAX_CHARS_PER_LINE = 80
 
-SPECIAL_NEWLINE_CHAR_PLACEHOLDER = (
-    "\u0011"  # device control 1 should not be present in html
-)
-SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER = (
-    "\u0012"  # device control 2 should not be present in html
-)
+# device control 1 should not be present in html
+SPECIAL_NEWLINE_CHAR_PLACEHOLDER = "\u0011"
+# device control 2 should not be present in html
+SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER = "\u0012"
 
 
 def replace_multiple_whitespace_single_space_replace_special_newling(string: str):
@@ -102,7 +102,7 @@ def parse_description_html(description_html: str) -> str:
                 if full_description_list and full_description_list[-1] == "":
                     full_description_list.pop()
                 to_str = regular_tag_to_string(description_child, "\n").split("\n")
-                full_description_list.extend(to_str)
+                full_description_list.extend(line.rstrip() for line in to_str)
                 full_description_list.append("")
             elif tag_type_str == "pre" or tag_type_str == "img":
                 pass
@@ -118,7 +118,7 @@ def parse_description_html(description_html: str) -> str:
     line_limited_description_list: list[str] = []
     indent_size = 4
     for line in full_description_list:
-        if len(line) <= MAX_LINE_LENGTH:
+        if len(line) <= MAX_CHARS_PER_LINE:
             line_limited_description_list.append(line)
             continue
 
@@ -130,15 +130,16 @@ def parse_description_html(description_html: str) -> str:
 
         breaks = 0
         curr_indent_size = 0
-        while len(line) + indent_size > MAX_LINE_LENGTH:
+        while len(line) - indent_size > MAX_CHARS_PER_LINE:
             curr_indent_size = list_depth * (breaks > 0)
-            split_idx = line.rfind(" ", 0, MAX_LINE_LENGTH - curr_indent_size)
+            split_idx = line.rfind(" ", 0, MAX_CHARS_PER_LINE + curr_indent_size)
             line_limited_description_list.append(
                 " " * curr_indent_size + line[:split_idx]
             )
             line = line[split_idx + 1 :]
             breaks += 1
 
+        curr_indent_size = list_depth * (breaks > 0)
         line_limited_description_list.append(" " * curr_indent_size + line)
 
     return "\n".join(line_limited_description_list)
