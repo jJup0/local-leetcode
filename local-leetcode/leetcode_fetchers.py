@@ -77,7 +77,7 @@ class ClassicRequestsFetcher(LeetCodeFetcher):
         # Check if the request was successful (status code 200)
         if response.status_code == 200:
             json_response = response.json()
-            logger.critical("Got response: %s", json_response)
+            logger.debug("Got response: %s", json_response)
             return json_response
 
         self.fetch_fail(response)
@@ -123,7 +123,7 @@ class SeleniumRequestsFetcher(LeetCodeFetcher):
 
         if response.status_code == 200:
             json_response = response.json()
-            logger.critical("Got response: %s", json_response)
+            logger.debug("Got response: %s", json_response)
             return json_response
 
         self.fetch_fail(response)
