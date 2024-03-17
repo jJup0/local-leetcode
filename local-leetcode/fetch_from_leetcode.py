@@ -109,7 +109,7 @@ def get_default_code_unclean(fetcher: LeetCodeFetcher, title_slug: str):
 def clean_code(unclean_code: str) -> str:
     # todo only match full word for List, otherwise function names with List
     # or ListNode definitions will get messed up
-    replacements = (("\bList\b", "list"),)
+    replacements = ((" List[", " list["),)
     for pattern_to_replace, replacement in replacements:
         unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
     return unclean_code
