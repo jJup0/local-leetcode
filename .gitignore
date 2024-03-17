@@ -1,8 +1,18 @@
+# local configuration
 .vscode
+
+# build, dist etc.
 local_leetcode.egg-info/
 dist/
 venv/
 **/__pycache__/
+
+# cache
+.coverage
+.tox
+.mypy_cache
+.pytest_cache
+
+# temp
 temp/
 temp.py
-.coverage
