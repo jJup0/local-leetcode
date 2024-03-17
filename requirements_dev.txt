@@ -3,3 +3,4 @@ tox
 pytest
 pytest-cov
 mypy
+types-requests # mypy expects stub library for requests
