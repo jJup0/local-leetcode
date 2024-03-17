@@ -1,6 +1,8 @@
 import abc
 import json
 import logging
+import os
+import re
 from typing import Any, NoReturn, cast
 
 import requests
@@ -16,6 +18,9 @@ logger = logging.getLogger(__name__)
 LEETCODE_GRAPHQL_API_URL = "https://leetcode.com/graphql"
 ERROR_DUMP_FILE_LOCATION_HTML = "fetched.html"
 ERROR_DUMP_FILE_LOCATION_JSON = "fetched.json"
+
+cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".cache")
+os.makedirs(cache_dir, exist_ok=True)
 
 
 class LeetCodeFetcher(abc.ABC):
@@ -36,6 +41,30 @@ class LeetCodeFetcher(abc.ABC):
             dict[str, Any]: JSON response from the LeetCode GraphQL API.
         """
         raise NotImplementedError()
+
+    def cache_response(self, query: str, json_response: dict[str, Any]):
+        """Write a JSON response to a file to inspect later.
+
+        Args:
+            query (str): GraphQL query that was sent.
+            json_response (dict[str, Any]): JSON response.
+        """
+        global cache_dir
+        fn_char_arr: list[str] = []
+        real_chars_count = 0
+        for c in query:
+            if c.isalnum():
+                fn_char_arr.append(c)
+                real_chars_count += 1
+            else:
+                fn_char_arr.append("_")
+            if real_chars_count > 15:
+                break
+
+        fn = "".join(fn_char_arr)
+        fn = re.sub("_+", "_", fn).strip("_")
+        with open(os.path.join(cache_dir, f"{fn}.json"), "w") as f:
+            json.dump(json_response, f)
 
     def _fetch_fail(self, response: requests.Response) -> NoReturn:
         try:
@@ -162,6 +191,7 @@ class ClassicRequestsFetcher(LeetCodeFetcher):
         if response.status_code == 200:
             json_response = response.json()
             logger.debug("Got response: %s", json_response)
+            self.cache_response(query, json_response)
             return cast(dict[str, Any], json_response)
 
         self._fetch_fail(response)
@@ -208,6 +238,7 @@ class SeleniumRequestsFetcher(LeetCodeFetcher):
         if response.status_code == 200:
             json_response = response.json()
             logger.debug("Got response: %s", json_response)
+            self.cache_response(query, json_response)
             return cast(dict[str, Any], json_response)
 
         self._fetch_fail(response)
