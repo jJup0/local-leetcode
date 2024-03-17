@@ -1,7 +1,8 @@
+import dataclasses
 import logging
 import os
 import subprocess
-from typing import Any, TypedDict
+from typing import Any
 
 from .html_parser import parse_description_html
 from .leetcode_fetchers import ClassicRequestsFetcher, LeetCodeFetcher
@@ -27,6 +28,7 @@ def get_daily_question_slug(fetcher: LeetCodeFetcher) -> str:
     daily_q_title_slug = result["data"]["activeDailyCodingChallengeQuestion"][
         "question"
     ]["titleSlug"]
+    assert type(daily_q_title_slug) is str
     return daily_q_title_slug
 
 
@@ -46,6 +48,7 @@ def get_daily_question_description_html(
     }
     result = fetcher.post_leetcode_graph_ql(question_query, question_variables)
     problem_description_html = result["data"]["question"]["content"]
+    assert type(problem_description_html) is str
     return problem_description_html
 
 
@@ -55,7 +58,8 @@ def get_daily_question_description(fetcher: LeetCodeFetcher, daily_q_title_slug:
     return description_str
 
 
-class QuestionInfo(TypedDict):
+@dataclasses.dataclass(kw_only=True)
+class QuestionInfo:
     questionId: int
     questionFrontendId: int
     title: str
@@ -80,7 +84,7 @@ def get_question_info(
         "titleSlug": daily_q_title_slug,
     }
     result = fetcher.post_leetcode_graph_ql(question_query, gql_variables)
-    return QuestionInfo(result["data"]["question"])
+    return QuestionInfo(**result["data"]["question"])
 
 
 def get_default_code_unclean(fetcher: LeetCodeFetcher, title_slug: str):
@@ -121,9 +125,9 @@ def get_default_code(fetcher: LeetCodeFetcher, title_slug: str) -> str:
 
 
 def get_question_path(question_info: QuestionInfo) -> str:
-    q_number = question_info["questionFrontendId"]
-    difficulty = question_info["difficulty"]
-    title = question_info["title"]
+    q_number = question_info.questionFrontendId
+    difficulty = question_info.difficulty
+    title = question_info.title
     file_path = os.path.realpath(
         os.path.join(os.path.dirname(__file__), difficulty, f"{q_number}. {title}.py")
     )
