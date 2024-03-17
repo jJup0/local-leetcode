@@ -4,7 +4,12 @@ import logging
 from typing import Any, NoReturn, cast
 
 import requests
-import seleniumrequests  # pyright: ignore reportMissingTypeStubs
+import seleniumrequests  # type: ignore[reportMissingTypeStubs]
+
+from local_leetcode.html_parser import (
+    parse_description_html,  # pyright: ignore reportMissingTypeStubs
+)
+from local_leetcode.leetcode_question_info import QuestionInfo
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +37,7 @@ class LeetCodeFetcher(abc.ABC):
         """
         raise NotImplementedError()
 
-    def fetch_fail(self, response: requests.Response) -> NoReturn:
+    def _fetch_fail(self, response: requests.Response) -> NoReturn:
         try:
             response_content = response.json()
             with open(ERROR_DUMP_FILE_LOCATION_JSON, "wb") as f:
@@ -45,6 +50,85 @@ class LeetCodeFetcher(abc.ABC):
         raise Exception(
             f"Error: Failed to make GraphQL request. Status Code: {response.status_code}. Response: {response_content}"
         )
+
+    def get_daily_question_slug(self) -> str:
+        daily_q_query = """
+        {
+            activeDailyCodingChallengeQuestion {
+                date
+                link
+                question {
+                    titleSlug
+                }
+            }
+        }
+        """
+        result = self.post_leetcode_graph_ql(daily_q_query)
+        daily_q_title_slug = result["data"]["activeDailyCodingChallengeQuestion"][
+            "question"
+        ]["titleSlug"]
+        assert type(daily_q_title_slug) is str
+        return daily_q_title_slug
+
+    def get_daily_question_description_html(self, daily_q_title_slug: str) -> str:
+        question_query = """query questionContent($titleSlug: String!) {
+            question(titleSlug: $titleSlug) {
+                content
+                mysqlSchemas
+                dataSchemas
+            }
+        }
+        """
+        question_variables = {
+            "titleSlug": daily_q_title_slug,
+        }
+        result = self.post_leetcode_graph_ql(question_query, question_variables)
+        problem_description_html = result["data"]["question"]["content"]
+        assert type(problem_description_html) is str
+        return problem_description_html
+
+    def get_daily_question_description(self, daily_q_title_slug: str):
+        description_html = self.get_daily_question_description_html(daily_q_title_slug)
+        description_str = parse_description_html(description_html)
+        return description_str
+
+    def get_question_info(self, daily_q_title_slug: str) -> QuestionInfo:
+        question_query = """query questionTitle($titleSlug: String!) {
+            question(titleSlug: $titleSlug) {
+                questionId
+                questionFrontendId
+                title
+                titleSlug
+                difficulty
+            }
+        }
+        """
+        gql_variables = {
+            "titleSlug": daily_q_title_slug,
+        }
+        result = self.post_leetcode_graph_ql(question_query, gql_variables)
+        return QuestionInfo(**result["data"]["question"])
+
+    def get_default_code_unclean(self, title_slug: str):
+        code_gql_query = """query questionEditorData($titleSlug: String!) {
+            question(titleSlug: $titleSlug) {
+                questionId
+                codeSnippets {
+                    langSlug
+                    code
+                }
+            }
+        }
+        """
+        code_gql_variables = {
+            "titleSlug": title_slug,
+        }
+        result = self.post_leetcode_graph_ql(code_gql_query, code_gql_variables)
+        all_code_snippets: list[Any] = result["data"]["question"]["codeSnippets"]
+        for code_snippet in all_code_snippets:
+            if code_snippet["langSlug"] == "python3":
+                return code_snippet["code"]
+        raise Exception("python3 not found in languages")
 
 
 class ClassicRequestsFetcher(LeetCodeFetcher):
@@ -80,7 +164,7 @@ class ClassicRequestsFetcher(LeetCodeFetcher):
             logger.debug("Got response: %s", json_response)
             return cast(dict[str, Any], json_response)
 
-        self.fetch_fail(response)
+        self._fetch_fail(response)
 
 
 class SeleniumRequestsFetcher(LeetCodeFetcher):
@@ -126,4 +210,4 @@ class SeleniumRequestsFetcher(LeetCodeFetcher):
             logger.debug("Got response: %s", json_response)
             return cast(dict[str, Any], json_response)
 
-        self.fetch_fail(response)
+        self._fetch_fail(response)
