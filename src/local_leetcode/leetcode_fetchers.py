@@ -1,7 +1,7 @@
 import abc
 import json
 import logging
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
 import requests
 import seleniumrequests  # pyright: ignore reportMissingTypeStubs
@@ -78,7 +78,7 @@ class ClassicRequestsFetcher(LeetCodeFetcher):
         if response.status_code == 200:
             json_response = response.json()
             logger.debug("Got response: %s", json_response)
-            return json_response
+            return cast(dict[str, Any], json_response)
 
         self.fetch_fail(response)
 
@@ -124,6 +124,6 @@ class SeleniumRequestsFetcher(LeetCodeFetcher):
         if response.status_code == 200:
             json_response = response.json()
             logger.debug("Got response: %s", json_response)
-            return json_response
+            return cast(dict[str, Any], json_response)
 
         self.fetch_fail(response)
