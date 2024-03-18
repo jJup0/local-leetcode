@@ -1,5 +1,6 @@
 import difflib
 
+from local_leetcode.fetch_from_leetcode import clean_code
 from local_leetcode.html_parser import parse_description_html
 from tests import load_test_data
 
@@ -19,5 +20,25 @@ def test_indent_bullet_point() -> None:
     assert full_diff == "", full_diff
 
 
+def test_clean_code() -> None:
+    str_in = "class Solution:\n    def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:"
+    expected_out = "class Solution:\n    def insert(self, intervals: list[list[int]], newInterval: list[int]) -> list[list[int]]:"
+    assert clean_code(str_in) == expected_out
+
+
+def test_optional_replace() -> None:
+    unclean_code = load_test_data("21_code_stub_optional_listnode.txt")
+    actual_cleaned = clean_code(unclean_code)
+    expected_cleaned = load_test_data("21_code_stub_optional_listnode_cleaned.txt")
+
+    full_diff = "\n".join(
+        difflib.context_diff(actual_cleaned.splitlines(), expected_cleaned.splitlines())
+    )
+    assert full_diff == "", full_diff
+
+
 if __name__ == "__main__":
     test_indent_bullet_point()
+    test_clean_code()
+    test_optional_replace()
+    print("Ran tests")
