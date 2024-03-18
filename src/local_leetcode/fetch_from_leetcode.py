@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 
 from local_leetcode.leetcode_fetchers import ClassicRequestsFetcher
@@ -13,10 +14,12 @@ logger.setLevel(logging.DEBUG)
 def clean_code(unclean_code: str) -> str:
     # todo only match full word for List, otherwise function names with List
     # or ListNode definitions will get messed up
-    replacements = (("List[", "list["),)
+    replacements = (
+        (r"List\[", "list["),
+        (r"Optional\[(\w+)\]", r"\1 | None"),
+    )
     for pattern_to_replace, replacement in replacements:
-        # unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
-        unclean_code = unclean_code.replace(pattern_to_replace, replacement)
+        unclean_code = re.sub(pattern_to_replace, replacement, unclean_code)
     return unclean_code
 
 
