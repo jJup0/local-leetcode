@@ -11,9 +11,9 @@ class ListNode:
     )
 
     @staticmethod
-    def fromList(l: list[Any]) -> "ListNode | None":
+    def fromList(list_in: list[Any]) -> "ListNode | None":
         dummy = curr = ListNode()
-        for x in l:
+        for x in list_in:
             curr.next = ListNode(x)
             curr = curr.next
         return dummy.next
