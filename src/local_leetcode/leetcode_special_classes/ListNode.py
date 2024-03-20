@@ -24,7 +24,7 @@ class ListNode:
 
     def __repr__(self) -> str:
         l: list[Any] = []
-        head = self
+        head: "ListNode | None" = self
         while head:
             l.append(head.val)
             head = head.next
