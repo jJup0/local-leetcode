@@ -43,6 +43,11 @@ def test_parse_ol() -> None:
     _test_html_parse("2402_description_ol")
 
 
+def test_artificial_combo() -> None:
+    _test_html_parse("artificial_combo")
+
+
 if __name__ == "__main__":
-    test_parse_ol()
+    test_indent_bullet_point()
+    test_artificial_combo()
     print("Ran tests")
