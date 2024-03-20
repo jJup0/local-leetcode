@@ -27,9 +27,7 @@ def get_question_path(question_info: QuestionInfo) -> str:
     q_number = question_info.questionFrontendId
     difficulty = question_info.difficulty
     title = question_info.title
-    file_path = os.path.realpath(
-        os.path.join(os.path.dirname(__file__), difficulty, f"{q_number}. {title}.py")
-    )
+    file_path = os.path.realpath(os.path.join(difficulty, f"{q_number}. {title}.py"))
     return file_path
 
 
