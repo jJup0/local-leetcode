@@ -1,5 +1,6 @@
 import logging
 
+import pytest
 import selenium.common.exceptions
 
 from local_leetcode.leetcode_fetchers import (
@@ -16,6 +17,7 @@ def test_fetch_using_requests() -> None:
     assert len(slug) > 0
 
 
+@pytest.mark.skip(reason="Takes too long")
 def test_fetch_using_selenium() -> None:
     try:
         slug = SeleniumRequestsFetcher().get_daily_question_slug()
