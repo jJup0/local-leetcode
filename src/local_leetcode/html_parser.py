@@ -1,6 +1,9 @@
+import logging
 import re
 
 import bs4
+
+logger = logging.getLogger(__name__)
 
 # maximum characters per line when generating docstring,
 # whitespace does not count towards this limit
@@ -10,6 +13,8 @@ MAX_CHARS_PER_LINE = 80
 SPECIAL_NEWLINE_CHAR_PLACEHOLDER = "\u0011"
 # device control 2 should not be present in html
 SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER = "\u0012"
+
+SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER = "\u0013"
 
 
 def replace_multiple_whitespace_single_space_replace_special_newling(string: str):
@@ -24,7 +29,7 @@ def replace_multiple_whitespace_single_space(string: str):
     return re.sub(r"\s+", " ", string)
 
 
-def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -> str:
+def regular_tag_to_string(tag: bs4.Tag, joiner: str = " ", list_depth: int = 0) -> str:
     res_str_list: list[str] = []
     for child in tag.contents:
         if isinstance(child, bs4.NavigableString):
@@ -34,78 +39,94 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -
                 )
         elif isinstance(child, bs4.Tag):
             child_type_str = child.name
-            str_to_add = ""
-            if child_type_str == "sup":
-                if child.text.strip().isnumeric():
-                    str_to_add += "^"
-            elif child_type_str == "sub":
-                str_to_add += "_"
-            elif child_type_str == "li":
-                str_to_add += (
-                    SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER * 2 * list_depth + "- "
+            if child_type_str == "ul":
+                res_str_list.append(
+                    SPECIAL_NEWLINE_CHAR_PLACEHOLDER
+                    + regular_tag_to_string(
+                        child, SPECIAL_NEWLINE_CHAR_PLACEHOLDER, list_depth + 1
+                    )
                 )
-            elif child_type_str == "ul":
-                str_to_add += SPECIAL_NEWLINE_CHAR_PLACEHOLDER + regular_tag_to_string(
-                    child, SPECIAL_NEWLINE_CHAR_PLACEHOLDER, list_depth + 1
-                )
-                res_str_list.append(str_to_add)
                 continue
 
-            child_to_str_replaced = (
+            str_prefix = ""
+            child_content_as_str = (
                 replace_multiple_whitespace_single_space_replace_special_newling(
                     regular_tag_to_string(child)
                 )
             )
-            str_to_add += child_to_str_replaced
-            res_str_list.append(str_to_add)
+            if child_type_str == "sup":
+                if child.text.strip().isnumeric():
+                    str_prefix = "^"
+            elif child_type_str == "sub":
+                str_prefix = "_"
+            elif child_type_str == "li":
+                str_prefix = (
+                    SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER * 2 * list_depth + "- "
+                )
+            elif child_type_str == "code":
+                # text within a code block should not be broken up
+                # inequalities are often in code blocks, which are very ugly when broken up
+                child_content_as_str = re.sub(
+                    r"\s", SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER, child_content_as_str
+                )
+
+            res_str_list.append(str_prefix + child_content_as_str)
         else:
-            print(f"child is other type of page element: {type(child)=}")
-    res = joiner.join(res_str_list)
-    if tag.name == "ul":
-        pass
-    return res
+            logger.warning("Child element has unexpected type: %s", type(child))
+
+    simple_joined = joiner.join(res_str_list)
+    double_space_removed = re.sub(r"([^\S\n])+", " ", simple_joined)
+    space_before_punctuation_removed = re.sub(
+        r"\s+([.,;:?!^])", r"\1", double_space_removed
+    )
+    return space_before_punctuation_removed
 
 
 def parse_description_html(description_html: str) -> str:
-    description_html = f"<div>{description_html}</div>"
+    description_html = f"<html>{description_html}</html>"
     soup = bs4.BeautifulSoup(description_html, "html.parser")
 
-    description_div = soup.find("div")
+    description_div = soup.find("html")
     assert isinstance(description_div, bs4.Tag)
 
     full_description_list: list[str] = []
-    add_to_list = True
+    include_in_description = True
     for description_child in description_div.contents:
+        # p tags containing a single non breakable space should separate
+        # description from examples from constraints. Do not include
+        # examples in the parsed description
+        if (
+            isinstance(description_child, bs4.Tag)
+            and description_child.name == "p"
+            and description_child.text == "\u00a0"
+        ):
+            # toggle whether to include html in description
+            include_in_description = not include_in_description
+            continue
+
+        if not include_in_description:
+            continue
+
         if isinstance(description_child, bs4.NavigableString):
-            if not add_to_list:
-                continue
             text = description_child.text.strip()
             if text:
                 full_description_list.append(text)
             continue
         elif isinstance(description_child, bs4.Tag):
             tag_type_str = description_child.name
+            # the "top level tags" of the description can only be <p>, <ul>, <pre> or <img> tags,
+            # these may contain several other tags
             if tag_type_str == "p":
-                # p tags containing no text separate description from examples from constraints.
-                # do not include examples in the parsed description
-                if description_child.text.strip() == "":
-                    add_to_list = not add_to_list
-                    continue
-
-                if not add_to_list:
-                    continue
                 full_description_list.append(regular_tag_to_string(description_child))
                 full_description_list.append("")
             elif tag_type_str == "ul":
-                if not add_to_list:
-                    continue
                 if full_description_list and full_description_list[-1] == "":
                     full_description_list.pop()
                 to_str = regular_tag_to_string(description_child, "\n").split("\n")
                 full_description_list.extend(line.rstrip() for line in to_str)
                 full_description_list.append("")
             elif tag_type_str == "pre" or tag_type_str == "img":
-                pass
+                logger.warning("Handling of <pre> and <img> tags not implemented")
             else:
                 print(f"parsing tag type <{tag_type_str}> not implemented!")
 
@@ -142,4 +163,7 @@ def parse_description_html(description_html: str) -> str:
         curr_indent_size = list_depth * (breaks > 0)
         line_limited_description_list.append(" " * curr_indent_size + line)
 
-    return "\n".join(line_limited_description_list)
+    return "\n".join(
+        line.replace(SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER, " ")
+        for line in line_limited_description_list
+    )
