@@ -4,22 +4,24 @@ import pytest
 
 from local_leetcode.fetch_from_leetcode import clean_code
 from local_leetcode.html_parser import parse_description_html
-from tests import load_test_data
+from tests import load_test_data, write_temp_to_test_data
 
 
-def test_indent_bullet_point() -> None:
-    html_in = load_test_data("1657_description_indent_bullet.html")
+def _test_html_parse(base_filename: str) -> None:
+    html_in = load_test_data(f"{base_filename}.html")
     parsed = parse_description_html(html_in)
-    expected_parse = load_test_data("1657_description_indent_bullet_expected_parse.txt")
-
-    assert (
-        "  - For example, abcde -> aecdb" in parsed
-    ), f"Parsed description does not seem to have bullet point indented:\n{parsed}"
+    expected_parse = load_test_data(f"{base_filename}_expected_parse.txt")
 
     full_diff = "\n".join(
         difflib.context_diff(parsed.splitlines(), expected_parse.splitlines())
     )
+    if full_diff != "":
+        write_temp_to_test_data(parsed)
     assert full_diff == "", full_diff
+
+
+def test_indent_bullet_point() -> None:
+    _test_html_parse("1657_description_indent_bullet")
 
 
 def test_clean_code() -> None:
@@ -30,32 +32,17 @@ def test_clean_code() -> None:
 
 @pytest.mark.skip(reason="Replacing ListNode not implemented yet")
 def test_optional_replace() -> None:
-    unclean_code = load_test_data("21_code_stub_optional_listnode.txt")
-    actual_cleaned = clean_code(unclean_code)
-    expected_cleaned = load_test_data("21_code_stub_optional_listnode_cleaned.txt")
-
-    full_diff = "\n".join(
-        difflib.context_diff(actual_cleaned.splitlines(), expected_cleaned.splitlines())
-    )
-    assert full_diff == "", full_diff
+    _test_html_parse("21_code_stub_optional_listnode")
 
 
 def test_bold__sup_in_code() -> None:
-    html_in = load_test_data("629_description_bold__sup_in_code.html")
-    parsed = parse_description_html(html_in)
-    expected_parse = load_test_data(
-        "629_description_bold__sup_in_code_expected_parse.txt"
-    )
+    _test_html_parse("629_description_bold__sup_in_code")
 
-    full_diff = "\n".join(
-        difflib.context_diff(parsed.splitlines(), expected_parse.splitlines())
-    )
-    assert full_diff == "", full_diff
+
+def test_parse_ol() -> None:
+    _test_html_parse("2402_description_ol")
 
 
 if __name__ == "__main__":
-    test_indent_bullet_point()
-    test_clean_code()
-    test_optional_replace()
-    test_bold__sup_in_code()
+    test_parse_ol()
     print("Ran tests")

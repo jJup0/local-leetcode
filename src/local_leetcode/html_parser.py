@@ -29,7 +29,13 @@ def replace_multiple_whitespace_single_space(string: str):
     return re.sub(r"\s+", " ", string)
 
 
-def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -> str:
+def regular_tag_to_string(
+    tag: bs4.Tag,
+    joiner: str = "",
+    list_depth: int = 0,
+    list_type: str = "",
+) -> str:
+    list_item_count = 0
     res_str_list: list[str] = []
     for child in tag.contents:
         if isinstance(child, bs4.NavigableString):
@@ -39,11 +45,14 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -
                 )
         elif isinstance(child, bs4.Tag):
             child_type_str = child.name
-            if child_type_str == "ul":
+            if child_type_str == "ul" or child_type_str == "ol":
                 res_str_list.append(
                     SPECIAL_NEWLINE_CHAR_PLACEHOLDER
                     + regular_tag_to_string(
-                        child, SPECIAL_NEWLINE_CHAR_PLACEHOLDER, list_depth + 1
+                        child,
+                        SPECIAL_NEWLINE_CHAR_PLACEHOLDER,
+                        list_depth + 1,
+                        list_type=child_type_str,
                     )
                 )
                 continue
@@ -56,9 +65,15 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -
             elif child_type_str == "sub":
                 str_prefix = "_"
             elif child_type_str == "li":
-                str_prefix = (
-                    SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER * 2 * list_depth + "- "
-                )
+                list_item_count += 1
+                if list_type == "ul":
+                    str_prefix = (
+                        f"{SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER * 2 * list_depth}- "
+                    )
+                elif list_type == "ol":
+                    str_prefix = f"{SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER * (2 * list_depth)}{list_item_count}.{SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER}"
+                else:
+                    logger.error("<li> tag encountered outside of list")
             elif child_type_str == "code":
                 # text within a code block should not be broken up
                 # inequalities are often in code blocks, which are very ugly when broken up
@@ -120,8 +135,18 @@ def parse_description_html(description_html: str) -> str:
             elif tag_type_str == "ul":
                 if full_description_list and full_description_list[-1] == "":
                     full_description_list.pop()
-                to_str = regular_tag_to_string(description_child, "\n").split("\n")
-                full_description_list.extend(line.rstrip() for line in to_str)
+                to_str = regular_tag_to_string(
+                    description_child, "\n", list_type="ul"
+                ).split("\n")
+                full_description_list.extend(line for line in to_str)
+                full_description_list.append("")
+            elif tag_type_str == "ol":
+                if full_description_list and full_description_list[-1] == "":
+                    full_description_list.pop()
+                to_str = regular_tag_to_string(
+                    description_child, "\n", list_type="ol"
+                ).split("\n")
+                full_description_list.extend(line for line in to_str)
                 full_description_list.append("")
             elif tag_type_str == "pre" or tag_type_str == "img":
                 logger.warning("Handling of <pre> and <img> tags not implemented")
@@ -155,8 +180,12 @@ def parse_description_html(description_html: str) -> str:
         list_depth = 0
         if line.startswith("- "):
             list_depth = 2
-        if line.startswith("  - "):
+        elif line.startswith("  - "):
             list_depth = 4
+        elif re.findall(r"^\d+\..*", line, re.MULTILINE):
+            list_depth = 3
+        elif re.findall(r"^\w\w\d+\..*", line, re.MULTILINE):
+            list_depth = 5
 
         breaks = 0
         curr_indent_size = 0
