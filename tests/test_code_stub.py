@@ -37,8 +37,22 @@ def test_optional_replace() -> None:
     assert full_diff == "", full_diff
 
 
+def test_bold__sup_in_code() -> None:
+    html_in = load_test_data("629_description_bold__sup_in_code.html")
+    parsed = parse_description_html(html_in)
+    expected_parse = load_test_data(
+        "629_description_bold__sup_in_code_expected_parse.txt"
+    )
+
+    full_diff = "\n".join(
+        difflib.context_diff(parsed.splitlines(), expected_parse.splitlines())
+    )
+    assert full_diff == "", full_diff
+
+
 if __name__ == "__main__":
-    test_indent_bullet_point()
-    test_clean_code()
-    test_optional_replace()
+    # test_indent_bullet_point()
+    # test_clean_code()
+    # test_optional_replace()
+    test_bold__sup_in_code()
     print("Ran tests")
