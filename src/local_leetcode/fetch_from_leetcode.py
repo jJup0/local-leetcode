@@ -49,7 +49,7 @@ def create_question_file(
         )
         file_path = temp_file_name
 
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write('"""\n')
         f.write(q_description)
         f.write('\n"""\n')
