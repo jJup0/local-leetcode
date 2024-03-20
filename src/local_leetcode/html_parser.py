@@ -184,7 +184,7 @@ def parse_description_html(description_html: str) -> str:
             list_depth = 4
         elif re.findall(r"^\d+\..*", line, re.MULTILINE):
             list_depth = 3
-        elif re.findall(r"^\w\w\d+\..*", line, re.MULTILINE):
+        elif re.findall(r"^  \d+\..*", line, re.MULTILINE):
             list_depth = 5
 
         breaks = 0
