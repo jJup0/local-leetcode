@@ -17,7 +17,7 @@ SPECIAL_UNREMOVEABLE_SPACE_PLACEHOLDER = "\u0012"
 SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER = "\u0013"
 
 
-def replace_multiple_whitespace_single_space_replace_special_newling(string: str):
+def replace_multiple_whitespace_single_space_replace_special_newline(string: str):
     return (
         re.sub(r"([^\S\n])+", " ", string)
         .replace(SPECIAL_NEWLINE_CHAR_PLACEHOLDER, "\n")
@@ -29,7 +29,7 @@ def replace_multiple_whitespace_single_space(string: str):
     return re.sub(r"\s+", " ", string)
 
 
-def regular_tag_to_string(tag: bs4.Tag, joiner: str = " ", list_depth: int = 0) -> str:
+def regular_tag_to_string(tag: bs4.Tag, joiner: str = "", list_depth: int = 0) -> str:
     res_str_list: list[str] = []
     for child in tag.contents:
         if isinstance(child, bs4.NavigableString):
@@ -49,11 +49,7 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = " ", list_depth: int = 0) 
                 continue
 
             str_prefix = ""
-            child_content_as_str = (
-                replace_multiple_whitespace_single_space_replace_special_newling(
-                    regular_tag_to_string(child)
-                )
-            )
+            child_content_as_str = regular_tag_to_string(child)
             if child_type_str == "sup":
                 if child.text.strip().isnumeric():
                     str_prefix = "^"
@@ -66,9 +62,11 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = " ", list_depth: int = 0) 
             elif child_type_str == "code":
                 # text within a code block should not be broken up
                 # inequalities are often in code blocks, which are very ugly when broken up
-                child_content_as_str = re.sub(
+                strongly_joined_code = re.sub(
                     r"\s", SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER, child_content_as_str
                 )
+                # pad with spaces, to ensure code does not stick to any neighboring styled text like <b> or <u>
+                child_content_as_str = f" {strongly_joined_code} "
 
             res_str_list.append(str_prefix + child_content_as_str)
         else:
@@ -77,7 +75,7 @@ def regular_tag_to_string(tag: bs4.Tag, joiner: str = " ", list_depth: int = 0) 
     simple_joined = joiner.join(res_str_list)
     double_space_removed = re.sub(r"([^\S\n])+", " ", simple_joined)
     space_before_punctuation_removed = re.sub(
-        r"\s+([.,;:?!^])", r"\1", double_space_removed
+        r"\s+([.,;:?!^'\"])", r"\1", double_space_removed
     )
     return space_before_punctuation_removed
 
@@ -134,11 +132,22 @@ def parse_description_html(description_html: str) -> str:
             print(
                 f"description_child is other type of page element: {type(description_child)=}"
             )
-    full_description_list.pop()  # pop "" which should be automatically places after constraints <ul>
+
+    if full_description_list[-1] == "":
+        full_description_list.pop()
+
+    newlines_replaced_description_list: list[str] = []
+    for line in full_description_list:
+        split_lines = (
+            replace_multiple_whitespace_single_space_replace_special_newline(line)
+            .rstrip()
+            .split("\n")
+        )
+        newlines_replaced_description_list.extend(line.rstrip() for line in split_lines)
 
     line_limited_description_list: list[str] = []
     indent_size = 4
-    for line in full_description_list:
+    for line in newlines_replaced_description_list:
         if len(line) <= MAX_CHARS_PER_LINE:
             line_limited_description_list.append(line)
             continue
@@ -164,6 +173,6 @@ def parse_description_html(description_html: str) -> str:
         line_limited_description_list.append(" " * curr_indent_size + line)
 
     return "\n".join(
-        line.replace(SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER, " ")
+        line.replace(SPECIAL_NON_BREAKABLE_SPACE_PLACEHOLDER, " ").rstrip()
         for line in line_limited_description_list
     )
