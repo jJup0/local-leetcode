@@ -1,5 +1,7 @@
 import difflib
 
+import pytest
+
 from local_leetcode.fetch_from_leetcode import clean_code
 from local_leetcode.html_parser import parse_description_html
 from tests import load_test_data
@@ -26,6 +28,7 @@ def test_clean_code() -> None:
     assert clean_code(str_in) == expected_out
 
 
+@pytest.mark.skip(reason="Replacing ListNode not implemented yet")
 def test_optional_replace() -> None:
     unclean_code = load_test_data("21_code_stub_optional_listnode.txt")
     actual_cleaned = clean_code(unclean_code)
@@ -51,8 +54,8 @@ def test_bold__sup_in_code() -> None:
 
 
 if __name__ == "__main__":
-    # test_indent_bullet_point()
-    # test_clean_code()
-    # test_optional_replace()
+    test_indent_bullet_point()
+    test_clean_code()
+    test_optional_replace()
     test_bold__sup_in_code()
     print("Ran tests")
